@@ -1,0 +1,897 @@
+import mongoose, { Types } from 'mongoose';
+import QueryBuilder from '../../builder/QueryBuilder';
+import AppError from '../../error/AppError';
+import ServiceBooking from './serviceBooking.model';
+import { TServiceBooking } from './serviceBooking.interface';
+import { Payment } from '../payment/payment.model';
+// import { cencelBookingController } from '../cencelBooking/cencelBooking.controller';
+// import CencelBooking from '../cencelBooking/cencelBooking.model';
+import moment from 'moment';
+import httpStatus from 'http-status';
+import { ugiTokenService } from '../ugiToken/ugiToken.service';
+import Business from '../business/business.model';
+import { notificationService } from '../notification/notification.service';
+import { paymentService } from '../payment/payment.service';
+import Notification from '../notification/notification.model';
+import { User } from '../user/user.models';
+import CencelBooking from '../cencelBooking/cencelBooking.model';
+import SubscriptionPurchase from '../purchestSubscription/purchestSubscription.model';
+
+const createServiceBooking = async (
+  payload: TServiceBooking,
+  session: mongoose.ClientSession,
+) => {
+  const { bookingDate, bookingStartTime, bookingEndTime, businessId } = payload;
+
+  const isValidTimeFormat = (time: string) =>
+    moment(time, 'hh:mm A', true).isValid();
+  if (
+    typeof bookingStartTime !== 'string' ||
+    typeof bookingEndTime !== 'string' ||
+    !isValidTimeFormat(bookingStartTime) ||
+    !isValidTimeFormat(bookingEndTime)
+  ) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Invalid time format for start or end time , you send this formate hh:mm A',
+    );
+  }
+
+  console.log('console everything.............');
+
+  const isCancelBookingIn7days = await CencelBooking.findOne({
+    customerId: payload.customerId,
+    businessId: payload.businessId,
+    createdAt: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) },
+  });
+
+  if (isCancelBookingIn7days) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'You recently canceled a booking from this business. Therefore, you cannot book any service from this business again within 7 days from the cancellation date.',
+    );
+  }
+
+  // console.log({ payload });
+ console.log('console everything.............2');
+  const business = await Business.findOne({ businessId });
+  // console.log({ business });
+
+  if (!business) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Business not found!!');
+  }
+
+  console.log('before existing booking!!');
+
+  const existingBooking = await ServiceBooking.findOne({
+    businessId,
+    bookingDate,
+    status: 'booking',
+    $or: [
+      {
+        $and: [
+          { bookingStartTime: { $gte: bookingStartTime } },
+          { bookingStartTime: { $lte: bookingEndTime } },
+        ],
+      },
+
+      {
+        $and: [
+          { bookingEndTime: { $gte: bookingStartTime } },
+          { bookingEndTime: { $lte: bookingEndTime } },
+        ],
+      },
+    ],
+  }).session(session);
+  console.log('after existing booking');
+  // console.log({ existingBooking });
+
+  if (existingBooking) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Booking time is overlapping with an existing booking',
+    );
+  }
+
+  // console.log("before service create");
+  // console.log({ payload });
+  const result = await ServiceBooking.create([payload], { session }); // Use session if provided
+
+  return result;
+};
+
+
+const getAllServiceBookingByUserQuery = async (
+  query: Record<string, unknown>,
+  customerId: string,
+) => {
+  // console.log('booking user id', customerId);
+  const serviceBookingQuery = new QueryBuilder(
+    ServiceBooking.find({ customerId })
+      .populate('customerId')
+      .populate({
+        path: 'serviceIds',
+        populate: [
+          {
+            path: 'businessUserId',
+            select: 'fullName',
+          },
+          {
+            path: 'businessId',
+            select: 'businessLocation',
+          },
+        ],
+      })
+      .populate('business_id'),
+    query,
+  )
+    .search([''])
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const bookings = await serviceBookingQuery.modelQuery;
+   if (!bookings.length) {
+     const meta = await serviceBookingQuery.countTotal();
+     return { meta, result: [] };
+   }
+
+     const businessUserIds = bookings
+       .map((item) => item.businessId)
+       .filter(Boolean);
+  // console.log('businessUserIds=>>>>', businessUserIds);
+   const subscriptions = await SubscriptionPurchase.find({
+     businessUserId: { $in: businessUserIds },
+     endDate: { $gte: new Date() },
+   }).lean();
+
+    // console.log('subscriptions=>>>>', subscriptions);
+
+   const subscriptionMap = new Map(
+     subscriptions.map((sub) => [String(sub.businessUserId), sub.name]),
+   );
+
+  //  console.log('subscriptionMap=>>>>', subscriptionMap);
+
+   const result = bookings.map((item:any) => ({
+     ...item._doc,
+     subscriptionName: subscriptionMap.get(String(item.businessId)) || null,
+   }));
+  //  console.log('result=>>>>', result);
+  const meta = await serviceBookingQuery.countTotal();
+  return { meta, result };
+};
+
+const getAllServiceBookingByBusinessQuery = async (
+  query: Record<string, unknown>,
+  businessId: string,
+) => {
+  const ServiceBookingQuery = new QueryBuilder(
+    ServiceBooking.find({ businessId })
+      .populate('customerId')
+      .populate('serviceIds')
+      .populate('business_id'),
+    query,
+  )
+    .search([''])
+    .filter()
+    .sort()
+    .paginate()
+    .fields();
+
+  const result = await ServiceBookingQuery.modelQuery;
+  const meta = await ServiceBookingQuery.countTotal();
+  return { meta, result };
+};
+
+const getSingleServiceBooking = async (id: string) => {
+  const result = await ServiceBooking.findById(id).populate({
+    path: 'serviceIds',
+    populate: {
+      path: 'businessId',
+      select: 'paymentMethod',
+    },
+  });;
+  return result;
+};
+
+
+
+const cancelServiceBooking = async (id: string, customerId: string) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const serviceBooking: any =
+      await ServiceBooking.findById(id).session(session);
+    // console.log({ serviceBooking });
+
+    if (!serviceBooking) {
+      throw new AppError(404, 'Booking Service not found!!');
+    }
+
+    // Validate business existence
+    const business = await Business.findOne({
+      businessId: serviceBooking.businessId,
+    }).session(session);
+    if (!business) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Business not found');
+    }
+
+    // Prevent double cancellation
+    if (serviceBooking.status === 'complete') {
+      throw new AppError(404, 'Booking Service is already completed!');
+    }
+    if (serviceBooking.status === 'cencel') {
+      throw new AppError(404, 'Booking Service is already canceled!');
+    }
+
+    // console.log('step-2');
+
+    // Check if the user is authorized to cancel this booking
+    if (serviceBooking.customerId.toString() !== customerId) {
+      throw new AppError(
+        403,
+        'You are not authorized to cancel this ServiceBooking!',
+      );
+    }
+
+    const subscription = await SubscriptionPurchase.findOne({
+      businessUserId: business.businessId,
+      endDate: { $gte: new Date() },
+    });
+   
+
+    const currentTime = new Date();
+    currentTime.setUTCHours(0, 0, 0, 0); // Normalize current date to midnight
+
+    const bookingTime = new Date(serviceBooking.bookingDate);
+    bookingTime.setUTCHours(0, 0, 0, 0); // Normalize booking date to midnight
+
+    // Calculate the difference in hours
+    const timeDifferenceInHours =
+      (bookingTime.getTime() - currentTime.getTime()) / (1000 * 60 * 60);
+
+    console.log({ timeDifferenceInHours });
+
+    let refundPercentage = 0;
+    let ugiTokenPercentage = 0;
+
+    if (
+      (subscription && subscription.name === 'premium') ||
+      (subscription && subscription.name === 'yearly')
+    ) {
+     if (timeDifferenceInHours <= 24) {
+       refundPercentage = 0; // No refund within 24 hours
+       ugiTokenPercentage = 100;
+     } else if (timeDifferenceInHours <= 36) {
+       refundPercentage = 20; // Refund 20% within 24-36 hours
+       ugiTokenPercentage = 80;
+     } else if (timeDifferenceInHours <= 48) {
+       refundPercentage = 75; // Refund 75% within 36-48 hours
+       ugiTokenPercentage = 25;
+     } else {
+       refundPercentage = 100; // No refund for bookings more than 48 hours ahead
+       ugiTokenPercentage = 0;
+     }
+    }else{
+      refundPercentage = 100;
+      ugiTokenPercentage = 0;
+    }
+
+ 
+
+    // console.log('step-5');
+    // console.log('refundPercentage', refundPercentage);
+    // console.log('ugiTokenParcentage', ugiTokenParcentage);
+    // ugiTokenParcentage; ugiTokenParcentage; 
+    // Calculate refund amount
+    const refundAmount = Math.floor(
+      (serviceBooking.depositAmount * refundPercentage) / 100,
+    );
+
+    const uogiTokenAmount = Math.floor(
+      serviceBooking.depositAmount - refundAmount,
+    );
+    // console.log({ uogiTokenAmount });
+
+    // Update booking status to 'cancel'
+    serviceBooking.status = 'cencel';
+    serviceBooking.cencelationParsentage = refundPercentage || 0;
+    serviceBooking.cencelationAmount = refundAmount || 0;
+    serviceBooking.cencelationHours = Math.floor(timeDifferenceInHours) || 0;
+
+    serviceBooking.markModified('cencelationParsentage');
+    serviceBooking.markModified('cencelationAmount');
+    serviceBooking.markModified('cencelationHours');
+
+    // console.log('Before Save:', serviceBooking.toObject());
+    // await serviceBooking.save({ session });
+    await serviceBooking.save({ session });
+    // console.log('After Save:', result.toObject());
+
+    // Fetch the payment data for the booking
+    const paymentData = await Payment.findOne({
+      serviceBookingId: serviceBooking._id,
+      status: 'paid',
+    }).session(session);
+
+    if (!paymentData) {
+      throw new AppError(404, 'Payment not found!');
+    }
+
+    // Handle Stripe refund
+    if (paymentData.method === 'stripe' && refundAmount > 0) {
+      const refundData: any = {
+        amount: refundAmount,
+        payment_intent: paymentData.transactionId,
+      };
+
+      const refundResult = await paymentService.paymentRefundService(
+        refundData.amount,
+        refundData.payment_intent,
+      );
+
+      if (refundResult.status !== 'succeeded') {
+        throw new AppError(500, 'Refund not created');
+      }
+      paymentData.depositAmount =
+        paymentData.depositAmount - Number(refundAmount);
+      await paymentData.save({ session });
+
+      serviceBooking.refundStatus = 'success';
+      await serviceBooking.save({ session });
+    } else {
+      serviceBooking.refundStatus = 'pending';
+      await serviceBooking.save({ session });
+    }
+
+
+
+  if (subscription?.name === 'premium' || subscription?.name === 'yearly') {
+    // Create Ugi Token data
+    const ugiTokenData: any = {
+      businessId: serviceBooking.businessId,
+      ugiTokenParcentage: ugiTokenPercentage,
+      ugiTokenAmount: uogiTokenAmount,
+    };
+
+    const tokenCreate = await ugiTokenService.createUgiTokenService(
+      ugiTokenData,
+      session,
+    );
+
+    if (!tokenCreate) {
+      throw new AppError(500, 'Ugi token not created!!');
+    }
+
+    const notificationData: any = {
+      userId: business.businessId,
+      // message: `Booking Cancelled Successfully! Refund is ${refundPercentage}% of the deposit. Remaining ${uogiTokenAmount} converted to Uogi Tokens.`,
+      message: `Your Uogi token has now been applied successfully.`,
+      type: 'success',
+    };
+
+    const notificationData1: any = {
+      userId: business.businessId,
+      message: `You are now eligible for a Uogi token. Please confirm`,
+      type: 'ugiToken',
+      isUgiToken: tokenCreate[0]._id,
+    };
+
+    const [notification, notification1] = await Promise.all([
+      notificationService.createNotification(notificationData, session),
+      notificationService.createNotification(notificationData1, session),
+    ]);
+
+    if (!notification || !notification1) {
+      throw new AppError(500, 'Notification not created');
+    }
+  }
+
+   
+
+    const cancelData = {
+      businessId: serviceBooking.businessId,
+      customerId: serviceBooking.customerId
+    };
+
+    await CencelBooking.create([cancelData], { session });
+    
+
+    // Create Notifications
+    
+
+    // Commit the transaction (All operations succeed)
+    await session.commitTransaction();
+    session.endSession();
+
+    return {
+      message: `Booking cancelled successfully. Refund is ${refundPercentage}% of the deposit. Remaining ${uogiTokenAmount} converted to Uogi Tokens.`,
+      refundAmount: refundAmount ? refundAmount : 0,
+      uogiTokenAmount: uogiTokenAmount ? uogiTokenAmount : 0,
+    };
+  } catch (error) {
+    console.error('Transaction Error:', error);
+
+    // Rollback changes if any error occurs
+    await session.abortTransaction();
+    session.endSession();
+
+    throw error;
+  }
+};
+
+
+
+
+const businessmanCancelBookingService = async (
+  id: string,
+  businessId: string,
+) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const serviceBooking: any =
+      await ServiceBooking.findById(id).session(session);
+      // console.log('serviceBooking',serviceBooking);
+
+    if (!serviceBooking) {
+      throw new AppError(404, 'Booking Service not found!');
+    }
+
+    // Validate business existence
+    const business = await Business.findOne({
+      businessId: serviceBooking.businessId,
+    }).session(session);
+    if (!business) {
+      throw new AppError(httpStatus.BAD_REQUEST, 'Business not found');
+    }
+
+    // Prevent double cancellation
+    if (serviceBooking.status === 'complete') {
+      throw new AppError(404, 'Booking Service is already completed!');
+    }
+    if (serviceBooking.status === 'cancel') {
+      // Fixed typo
+      throw new AppError(404, 'Booking Service is already canceled!');
+    }
+
+    // Check authorization
+    if (serviceBooking.businessId.toString() !== businessId) {
+      throw new AppError(
+        403,
+        'You are not authorized to cancel this ServiceBooking!',
+      );
+    }
+
+    serviceBooking.status = 'cencel'; // Fixed typo
+    await serviceBooking.save({ session });
+
+    console.log('serviceBooking',serviceBooking);
+
+    // Fetch the payment data
+    const paymentData = await Payment.findOne({
+      serviceBookingId: serviceBooking._id,
+      status: 'paid',
+    }).session(session);
+    console.log('paymentData',paymentData);
+
+    if (!paymentData) {
+      throw new AppError(404, 'Payment not found!');
+    }
+
+    // Handle Stripe refund
+    if (paymentData.method === 'stripe' && serviceBooking.depositAmount > 0) {
+      const refundData: any = {
+        amount: Number(serviceBooking.depositAmount),
+        payment_intent: paymentData.transactionId,
+      };
+
+      const refundResult = await paymentService.paymentRefundService(
+        refundData.amount,
+        refundData.payment_intent,
+      );
+
+      if (refundResult.status !== 'succeeded') {
+        throw new AppError(500, 'Refund not created');
+      }
+
+      paymentData.depositAmount =
+        paymentData.depositAmount - Number(serviceBooking.depositAmount);
+      await paymentData.save({ session });
+
+      serviceBooking.refundStatus = 'success';
+      await serviceBooking.save({ session });
+    } else {
+      serviceBooking.refundStatus = 'pending';
+      await serviceBooking.save({ session });
+    }
+
+    // Create Notification
+    const notificationData: any = {
+      userId: serviceBooking.customerId,
+      message: 'Booking Cancelled Successfully! Refund is 100% of the deposit.', // Fixed string syntax
+      type: 'success',
+    };
+
+    const notification = await notificationService.createNotification(
+      // Added await
+      notificationData,
+      session,
+    );
+
+    if (!notification) {
+      throw new AppError(500, 'Notification not created');
+    }
+
+    // Commit transaction
+    await session.commitTransaction();
+    await session.endSession(); // Added await
+
+    return serviceBooking;
+  } catch (error) {
+    console.error('Transaction Error:', error);
+
+    // Ensure session is ended even if abort fails
+    try {
+      await session.abortTransaction();
+    } catch (abortError) {
+      console.error('Abort Transaction Error:', abortError);
+    } finally {
+      await session.endSession();
+    }
+
+    throw error;
+  }
+};
+
+
+
+
+const paymentStatusServiceBooking = async (id: string, customerId: string) => {
+  const idCheck = mongoose.Types.ObjectId.isValid(id);
+  if (!idCheck) {
+    throw new AppError(400, 'Invalid Id');
+  }
+
+  const bookingService = await ServiceBooking.findById(id);
+
+  if (!bookingService) {
+    throw new AppError(404, 'Booking Service not found!');
+  }
+
+  if (bookingService.customerId.toString() !== customerId) {
+    throw new AppError(
+      403,
+      'You are not authorized to complete this ServiceBooking!!',
+    );
+  }
+
+  bookingService.paymentStatus = 'processing';
+  const result = await bookingService.save();
+
+  const notificationData: any = {
+    userId: customerId,
+    message: `Payment Done Successfully!`,
+    type: 'success',
+  };
+
+  const notification =
+    await notificationService.createNotification(notificationData);
+  if (!notification) {
+    throw new AppError(500, 'Notification not created');
+  }
+
+  return result;
+};
+
+
+const completeServiceBooking = async (id: string, customerId: string) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+  // console.log('id*****+++',id)
+
+  try {
+    // 1️⃣ Find the Service Booking inside the transaction
+    const bookingService = await ServiceBooking.findById(id).session(session);
+
+    if (!bookingService) {
+      throw new AppError(404, 'Booking Service not found!');
+    }
+
+    if (bookingService.customerId.toString() !== customerId) {
+      throw new AppError(
+        403,
+        'You are not authorized to complete this ServiceBooking!!',
+      );
+    }
+
+    // 2️⃣ Update the service booking status
+    bookingService.status = 'complete';
+    bookingService.paymentStatus = 'paid';
+    const result = await bookingService.save({ session });
+
+    // 3️⃣ Create notifications inside the transaction
+    const notificationData = {
+      userId: customerId,
+      message: `Complete Service Booking Successfully!`,
+      type: 'success',
+    };
+    const notificationData1 = {
+      role: 'admin',
+      message: `Complete Service Booking Successfully!`,
+      type: 'success',
+    };
+
+    const [notification, notification1] = await Promise.all([
+      notificationService.createNotification(notificationData, session),
+      notificationService.createNotification(notificationData1, session),
+    ]);
+
+    if (!notification || !notification1) {
+      throw new AppError(500, 'Notification not created');
+    }
+
+    // 4️⃣ Commit the transaction (All operations succeed)
+    await session.commitTransaction();
+    session.endSession();
+
+    return result;
+  } catch (error) {
+    console.error('Transaction Error:', error);
+
+    // 5️⃣ Abort transaction if an error occurs
+    await session.abortTransaction();
+    session.endSession();
+
+    throw error;
+  }
+};
+
+const reSheduleRequestServiceBooking = async (id: string, payload: any) => {
+  console.log('RESCHEDULE SERVICE CALLED', id, Date.now());
+  const bookingService: any = await ServiceBooking.findById(id);
+
+  if (!bookingService) {
+    throw new AppError(404, 'Booking Service not found!');
+  }
+
+  if (bookingService.customerId.toString() !== payload.customerId) {
+    throw new AppError(
+      403,
+      'You are not authorized to complete this ServiceBooking!!',
+    );
+  }
+
+  const customer = await User.findById(payload.customerId);
+  if (!customer) {
+    throw new AppError(404, 'Customer not found!');
+  }
+
+  if (
+    bookingService.status === 'complete' ||
+    bookingService.status === 'cencel'
+  ) {
+    throw new AppError(
+      403,
+      'This ServiceBooking is not available for re-shedule service is complete!!',
+    );
+  }
+
+  if (bookingService.reSheduleStatus !== 'no-shuedule') {
+    throw new AppError(
+      403,
+      'You are not authorized to re-shedule this ServiceBooking!!',
+    );
+  }
+
+  if (bookingService.reSheduleStatus === 'pending-re-shedule') {
+    throw new AppError(403, 'Already pending re-shedule request!');
+  }
+
+  const startTime = moment(payload.bookingStartTime, 'hh:mm A');
+  const endTime = startTime.clone().add(bookingService.duration - 1, 'minutes');
+  payload.bookingStartTime = startTime.format('hh:mm A');
+  payload.bookingEndTime = endTime.format('hh:mm A');
+
+  const isValidTimeFormat = (time: string) =>
+    moment(time, 'hh:mm A', true).isValid();
+  if (
+    typeof payload.bookingStartTime !== 'string' ||
+    typeof payload.bookingEndTime !== 'string' ||
+    !isValidTimeFormat(payload.bookingStartTime) ||
+    !isValidTimeFormat(payload.bookingEndTime)
+  ) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Invalid time format for start or end time , you send this formate hh:mm A',
+    );
+  }
+
+  const business = await Business.findOne({
+    businessId: bookingService.businessId,
+  });
+  // console.log({ business });
+
+  if (!business) {
+    throw new AppError(httpStatus.BAD_REQUEST, 'Business not found');
+  }
+
+
+
+  const existingBooking = await ServiceBooking.findOne(
+    {
+      businessId: bookingService.businessId,
+      bookingDate: payload.bookingDate,
+      status: 'booking',
+      $or: [
+        {
+          $and: [
+            { bookingStartTime: { $gte: payload.bookingStartTime } },
+            { bookingStartTime: { $lte: payload.bookingEndTime } },
+          ],
+        },
+
+        {
+          $and: [
+            { bookingEndTime: { $gte: payload.bookingStartTime } },
+            { bookingEndTime: { $lte: payload.bookingEndTime } },
+          ],
+        },
+      ],
+    },
+    // { session },
+  );
+
+  // console.log({ existingBooking });
+
+  if (existingBooking) {
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      'Booking time is overlapping with an existing booking',
+    );
+  }
+
+  bookingService.reSheduleStartTime = payload.bookingStartTime;
+  bookingService.reSheduleEndTime = payload.bookingEndTime;
+  bookingService.reSheduleDate = payload.bookingDate;
+
+  bookingService.reSheduleStatus = 'pending-re-shedule';
+  const result = await bookingService.save();
+
+  const notificationData = {
+    userId: bookingService.businessId,
+    message:`${customer?.fullName} has requested to schedule a booking from ${new Date(bookingService.bookingDate).toLocaleDateString()} at ${bookingService.bookingStartTime} to ${new Date(bookingService.reSheduleDate).toLocaleDateString()} at ${bookingService.reSheduleStartTime}.Please review and confirm the request`,
+    status: 'pending',
+    type: 'reshedule',
+    serviceBookingId: bookingService._id,
+  };
+
+  const notification =
+    await notificationService.createNotification(notificationData);
+
+    console.log('notification =!= ......', notification);
+
+  if (!notification) {
+    throw new AppError(500, 'Notification not created!!');
+  }
+
+  return result;
+};
+
+const reSheduleCompleteCencelServiceBooking = async (
+  id: string,
+  businessId: string,
+  status: string,
+) => {
+  const bookingService: any = await ServiceBooking.findById(id);
+
+  if (!bookingService) {
+    throw new AppError(404, 'Booking Service not found!');
+  }
+
+  const notification = await Notification.findOne({
+    serviceBookingId: bookingService._id,
+  });
+
+  if (!notification) {
+    throw new AppError(404, 'Notification not found!');
+  }
+
+  console.log('notification//////', notification);
+
+  // return;
+
+  if (bookingService.businessId.toString() !== businessId) {
+    throw new AppError(403, 'You are not authorized to this ServiceBooking!!');
+  }
+
+  if (
+    bookingService.reSheduleStatus === 'cencel-re-shedule' ||
+    bookingService.reSheduleStatus === 'conform-re-shedule'
+  ) {
+    throw new AppError(
+      403,
+      'You have already requested for re-shedule!',
+    );
+  }
+
+  if (status == 'cencel') {
+    bookingService.reSheduleStatus = 'cencel-re-shedule';
+
+    const result = await bookingService.save();
+
+    if (notification && notification._id) {
+      await Notification.findByIdAndUpdate(
+        notification._id,
+        {
+          status: 'cancel',
+          message: 'You have cancelled the booking request.',
+        },
+        { new: true },
+      );
+      // console.log('Notification updated: cancel');
+    } 
+
+     return result;
+  } else if (status == 'conform') {
+    bookingService.reSheduleStatus = 'conform-re-shedule';
+      if (!bookingService.reSheduleDate) {
+        throw new AppError(400, 'Reschedule date not found');
+      }
+      console.log('bookingService===', bookingService);
+      console.log('bookingService.reSheduleDate', bookingService.reSheduleDate);
+      const newBookingDate = new Date(bookingService.reSheduleDate);
+      console.log('newBookingDate', newBookingDate);
+
+      if (isNaN(newBookingDate.getTime())) {
+        throw new AppError(400, 'Invalid reschedule date');
+      }
+  
+    console.log('new =========',new Date(bookingService.reSheduleDate));
+    console.log('new date', bookingService.bookingDate);
+
+    bookingService.bookingDate = newBookingDate;
+    bookingService.bookingStartTime = bookingService.reSheduleStartTime;
+    bookingService.bookingEndTime = bookingService.reSheduleEndTime;
+    bookingService.reSheduleDate = null;
+    bookingService.reSheduleStartTime = ' ';
+    bookingService.reSheduleEndTime = ' ';
+    const result = await bookingService.save();
+
+    
+
+    if (notification && notification._id) {
+      console.log('dasfafafafas notification');
+      await Notification.findByIdAndUpdate(
+        notification._id,
+        {
+          status: 'accept',
+          message: 'You have successfully accepted the booking request.',
+        },
+        { new: true },
+      );
+      // console.log('Notification updated: accept');
+    }
+
+    return result;
+  } else {
+    throw new AppError(403, 'You are not authorized to this ServiceBooking!!');
+  }
+};
+
+export const serviceBookingService = {
+  createServiceBooking,
+  getAllServiceBookingByUserQuery,
+  getAllServiceBookingByBusinessQuery,
+  paymentStatusServiceBooking,
+  cancelServiceBooking,
+  businessmanCancelBookingService,
+  getSingleServiceBooking,
+  completeServiceBooking,
+  reSheduleRequestServiceBooking,
+  reSheduleCompleteCencelServiceBooking,
+};
