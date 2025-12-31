@@ -42,40 +42,40 @@ import config from '../config';
 
 // apple login
 
-passport.use(
-  new AppleStrategy(
-    {
-      clientID: config.appleLogin_info.apple_client_id,
-      teamID: config.appleLogin_info.apple_team_id,
-      keyID: config.appleLogin_info.apple_key_id,
-      callbackURL: config.appleLogin_info.apple_callback_url,
-      passReqToCallback: true,
-    },
-    async (
-      req: any,
-      accessToken: string,
-      refreshToken: string,
-      idToken: string,
-      profile: any,
-      done: any,
-    ) => {
-      try {
+// passport.use(
+//   new AppleStrategy(
+//     {
+//       clientID: config.appleLogin_info.apple_client_id,
+//       teamID: config.appleLogin_info.apple_team_id,
+//       keyID: config.appleLogin_info.apple_key_id,
+//       callbackURL: config.appleLogin_info.apple_callback_url,
+//       passReqToCallback: true,
+//     },
+//     async (
+//       req: any,
+//       accessToken: string,
+//       refreshToken: string,
+//       idToken: string,
+//       profile: any,
+//       done: any,
+//     ) => {
+//       try {
 
-        console.log('profile=', profile);
-        console.log('email=', profile.email);
-        console.log('profile.id=', profile.id);
+//         console.log('profile=', profile);
+//         console.log('email=', profile.email);
+//         console.log('profile.id=', profile.id);
 
 
-        return done(null, {
-          appleId: profile.id,
-          email: profile.email || null,
-        });
-      } catch (err) {
-        return done(err);
-      }
-    },
-  ),
-);
+//         return done(null, {
+//           appleId: profile.id,
+//           email: profile.email || null,
+//         });
+//       } catch (err) {
+//         return done(err);
+//       }
+//     },
+//   ),
+// );
 
 
 

@@ -11,7 +11,11 @@ import jwt from 'jsonwebtoken';
 const createBusiness = catchAsync(async (req: Request, res: Response) => {
   // console.log('hit hoise');
   const bodyData = req.body;
-  const { userId } = req.user;
+  const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
   bodyData.businessId = userId;
   // console.log('=====', bodyData);
 
@@ -46,7 +50,11 @@ const getAllBusiness = catchAsync(async (req, res) => {
 });
 
 const getAllFilterBusiness = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
   // console.log('=======', { userId });
   const result = await businessService.getAllFilterByBusinessService(
     req.query,
@@ -64,7 +72,7 @@ const getAllFilterBusiness = catchAsync(async (req, res) => {
 });
 
 const getAllFilterBusinessByPostcode = catchAsync(async (req, res) => {
-  // const { userId } = req.user;
+ 
   // // console.log('=======', { userId });
   const postcode = Number(req.query.postcode);
   const result =
@@ -102,7 +110,9 @@ const getBusinessAvailableSlots = catchAsync(async (req, res) => {
 
 const getSingleBusinessBybusinessId = catchAsync(
   async (req: Request, res: Response) => {
-    const businessId = req.user.userId; // business man _id
+    const businessId = (
+      req.user as { userId: string; email: string; role: string }
+    ).userId; // business man _id
     // // console.log({ businessId });
     const result =
       await businessService.getSingleBusinessByBusinessIdService(businessId);
@@ -159,7 +169,9 @@ const getBusinessByService = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deletedBusiness = catchAsync(async (req: Request, res: Response) => {
-  const businessId = req.user.userId; // business man _id
+  const businessId = (
+    req.user as { userId: string; email: string; role: string }
+  ).userId; // business man _id
   const result = await businessService.deletedBusinessService(businessId);
 
   sendResponse(res, {
@@ -171,7 +183,9 @@ const deletedBusiness = catchAsync(async (req: Request, res: Response) => {
 });
 
 const updateBusiness = catchAsync(async (req: Request, res: Response) => {
-  const businessId = req.user.userId; // business man _id
+  const businessId = (
+    req.user as { userId: string; email: string; role: string }
+  ).userId; // business man _id
   const updateData = req.body;
   // // console.log({ updateData });
   const files = req.files as {
@@ -198,7 +212,9 @@ const updateBusiness = catchAsync(async (req: Request, res: Response) => {
 const updateAvailableBusinessTime = catchAsync(
   async (req: Request, res: Response) => {
     // console.log('hit hoise');
-    const businessId = req.user.userId; // business man _id
+    const businessId = (
+      req.user as { userId: string; email: string; role: string }
+    ).userId; // business man _id
     const updateData = req.body;
     // console.log('=======updateData up', updateData);
 

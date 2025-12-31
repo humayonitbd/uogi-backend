@@ -47,7 +47,7 @@ const getSingleSubCategory = catchAsync(async (req: Request, res: Response) => {
 
 const deletedSubCategory = catchAsync(async (req: Request, res: Response) => {
   const userId = '64a1f32b3c9f536a2e9b1234';
-  // const { userId } = req.user;
+  
   const result = await subCategoryService.deletedSubCategoryService(
     req.params.id,
   );

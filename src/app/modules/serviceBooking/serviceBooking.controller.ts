@@ -12,7 +12,11 @@ const createServiceBooking = catchAsync(async (req: Request, res: Response) => {
   const session = await mongoose.startSession();
   // console.log("sdafafaf")
   const bodyData = req.body;
-  const { userId } = req.user;
+  const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
   bodyData.customerId = userId;
   const startTime = moment(bodyData.bookingStartTime, 'hh:mm A');
   const endTime = startTime.clone().add(bodyData.duration - 1, 'minutes');
@@ -38,7 +42,11 @@ const createServiceBooking = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllServiceBookingByUser = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
   const result = await serviceBookingService.getAllServiceBookingByUserQuery(
     req.query,
     userId as string,
@@ -54,7 +62,11 @@ const getAllServiceBookingByUser = catchAsync(async (req, res) => {
 });
 
 const getAllServiceBookingByBusiness = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
   const result =
     await serviceBookingService.getAllServiceBookingByBusinessQuery(
       req.query,
@@ -87,7 +99,11 @@ const getSingleServiceBooking = catchAsync(
 
 const cencelServiceBooking = catchAsync(async (req: Request, res: Response) => {
   // const  userId  = '64a1f32b3c9f536a2e9b1234';
-  const { userId } = req.user;
+  const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
   const result = await serviceBookingService.cancelServiceBooking(
     req.params.id,
     userId,
@@ -104,7 +120,11 @@ const cencelServiceBooking = catchAsync(async (req: Request, res: Response) => {
 const cancelBookingServiceByBusinessman = catchAsync(
   async (req: Request, res: Response) => {
     // const  userId  = '64a1f32b3c9f536a2e9b1234';
-    const { userId } = req.user;
+    const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
     const result = await serviceBookingService.businessmanCancelBookingService(
       req.params.id,
       userId,
@@ -122,7 +142,11 @@ const cancelBookingServiceByBusinessman = catchAsync(
 const paymentStatusServiceBooking = catchAsync(
   async (req: Request, res: Response) => {
     // const  userId  = '64a1f32b3c9f536a2e9b1234';
-    const { userId } = req.user;
+    const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
     const result = await serviceBookingService.paymentStatusServiceBooking(
       req.params.id,
       userId,
@@ -140,7 +164,11 @@ const paymentStatusServiceBooking = catchAsync(
 const completeServiceBooking = catchAsync(
   async (req: Request, res: Response) => {
     // const userId = '64a1f32b3c9f536a2e9b1234';
-    const { userId } = req.user;
+    const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
     // console.log('userId ==', userId);
     const result = await serviceBookingService.completeServiceBooking(
       req.params.id,
@@ -159,9 +187,13 @@ const completeServiceBooking = catchAsync(
 const reScheduleRequestServiceBooking = catchAsync(
   async (req: Request, res: Response) => {
     // const userId = '64a1f32b3c9f536a2e9b1234';
-    
+   
     const bodyData = req.body;
-    const { userId } = req.user as any;
+    const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
     bodyData.customerId = userId;
 
     const result = await serviceBookingService.reSheduleRequestServiceBooking(
@@ -181,7 +213,16 @@ const reScheduleRequestServiceBooking = catchAsync(
 const reScheduleCompleteCencelServiceBooking = catchAsync(
   async (req: Request, res: Response) => {
     // const userId = '64a1f32b3c9f536a2e9b1234';
-    const { userId } = req.user;
+    const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    } as {
+      userId: string;
+      email: string;
+      role: string;
+    };
+
     const status = req.query.status as string;
     const result =
       await serviceBookingService.reSheduleCompleteCencelServiceBooking(

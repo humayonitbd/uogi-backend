@@ -31,7 +31,6 @@ const userCreateVarification = catchAsync(async (req, res) => {
   });
 });
 
-
 const twilioOtpSend = catchAsync(async (req, res) => {
   const newUser = await userService.twilioOtpSend();
 
@@ -55,7 +54,11 @@ const twilioOtpVerify = catchAsync(async (req, res) => {
 });
 
 const userSwichRole = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   const newUser = await userService.userSwichRoleService(userId);
 
   return sendResponse(res, {
@@ -127,7 +130,8 @@ const getUserById = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getMyProfile = catchAsync(async (req: Request, res: Response) => {
-  const result = await userService.getUserById(req?.user?.userId);
+ const userId = (req.user as { userId: string; email: string; role: string }).userId;
+  const result = await userService.getUserById(userId);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -140,8 +144,10 @@ const updateMyProfile = catchAsync(async (req: Request, res: Response) => {
   if (req?.file) {
     req.body.image = storeFile('profile', req?.file?.filename);
   }
+  const userId = (req.user as { userId: string; email: string; role: string })
+    .userId;
 
-  const result = await userService.updateUser(req?.user?.userId, req.body);
+  const result = await userService.updateUser(userId, req.body);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -161,7 +167,9 @@ const blockedUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deleteMyAccount = catchAsync(async (req: Request, res: Response) => {
-  const result = await userService.deleteMyAccount(req.user?.userId, req.body);
+  const userId = (req.user as { userId: string; email: string; role: string })
+    .userId;
+  const result = await userService.deleteMyAccount(userId, req.body);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,

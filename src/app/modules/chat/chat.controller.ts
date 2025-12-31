@@ -8,7 +8,11 @@ const getAllChats = catchAsync(async (req, res) => {
     limit: Number(req.query.limit) || 10,
     page: Number(req.query.page) || 1,
   };
-  const { userId } = req.user;
+  const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
   // console.log('userId=====================', userId);
   const filter: any = { participantId: userId };
 
@@ -20,7 +24,7 @@ const getAllChats = catchAsync(async (req, res) => {
     filter.name = searchRegExp;
     // filter._id = search;
   }
-  //  const { userId } = req.user;
+
   // // console.log({ filter });
   // // console.log({ options });
 

@@ -4,7 +4,11 @@ import sendResponse from '../../utils/sendResponse';
 import { withdrawService } from './withdraw.service';
 
 const addWithdraw = catchAsync(async (req, res, next) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   const withdrawData = req.body;
   withdrawData.businessId = userId;
 
@@ -49,7 +53,11 @@ const getAllWithdraw = catchAsync(async (req, res, next) => {
 });
 
 const getAllWithdrawByBusinessMan = catchAsync(async (req, res, next) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   // console.log('user id', userId);
   const result = await withdrawService.getAllWithdrawBybusinessService(
     req.query,

@@ -7,7 +7,11 @@
 
 // const createCencelBooking = catchAsync(async (req: Request, res: Response) => {
 //   const bookingCencel = req.body;
-//   const { userId } = req.user;
+// //   const { userId } = req.user as {
+//       userId: string;
+//       email: string;
+//       role: string;
+//     };;
 //   bookingCencel.userId = userId;
 //   const result = await cencelBookingCencel.createCencelBooking(bookingCencel);
 
@@ -49,7 +53,11 @@
 // );
 
 // const paidCencelBooking = catchAsync(async (req: Request, res: Response) => {
-//   const { userId } = req.user;
+// //   const { userId } = req.user as {
+//       userId: string;
+//       email: string;
+//       role: string;
+//     };;
 //   const result = await cencelBookingCencel.paidCencelBooking(
 //     req.params.id,
 //     userId,

@@ -8,7 +8,11 @@ import AppError from '../../error/AppError';
 import { favoriteBusinessService } from './favorite.service';
 
 const createFavoriteBusiness = catchAsync(async (req: Request, res: Response) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
 
   const { message, data } =
     await favoriteBusinessService.createOrDeleteFavoriteBusiness(
@@ -25,7 +29,11 @@ const createFavoriteBusiness = catchAsync(async (req: Request, res: Response) =>
 });
 
 const getAllFavoriteBusinessByUser = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };;
   const result =
     await favoriteBusinessService.getAllFavoriteBusinessByUserQuery(
       req.query,
@@ -42,7 +50,7 @@ const getAllFavoriteBusinessByUser = catchAsync(async (req, res) => {
 });
 
 // const deletedFavoriteBusiness = catchAsync(async (req: Request, res: Response) => {
-//   const { userId } = req.user;
+
 //   const result = await FavoriteBusinessService.deleteFavoriteBusiness(req.params.id, userId);
 
 //   sendResponse(res, {

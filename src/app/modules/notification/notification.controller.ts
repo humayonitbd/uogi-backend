@@ -13,8 +13,6 @@ const createNotification = catchAsync(async (req: Request, res: Response) => {
     session,
   );
 
- 
-
   sendResponse(res, {
     success: true,
     statusCode: httpStatus.OK,
@@ -24,7 +22,11 @@ const createNotification = catchAsync(async (req: Request, res: Response) => {
 });
 
 const getAllNotificationByUser = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   // console.log({userId});
   const result = await notificationService.getAllNotificationQuery(
     req.query,
@@ -70,7 +72,11 @@ const getSingleNotification = catchAsync(
 );
 
 const deletedNotification = catchAsync(async (req: Request, res: Response) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   const result = await notificationService.deleteNotification(
     req.params.id,
     userId,

@@ -11,7 +11,11 @@ const createBusinessService = catchAsync(
   async (req: Request, res: Response) => {
     // console.log('hit hoise');
     const bodyData = req.body;
-    const { userId } = req.user;
+    const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };
     // console.log({ userId });
     bodyData.servicePrice = Number(bodyData.servicePrice);
     bodyData.businessUserId = userId;
@@ -43,7 +47,9 @@ const createBusinessService = catchAsync(
 
 const getAllBusinessServiceByBusinessId = catchAsync(async (req, res) => {
   //halka change korte hobe
-  const businessId: any = req.user.userId;
+  const businessId: any = (
+    req.user as { userId: string; email: string; role: string }
+  ).userId;
   const result = await businessServiceService.getAllBusinessServiceByBusinessId(
     req.query,
     businessId,
@@ -138,7 +144,11 @@ const updateBusinessService = catchAsync(
 const deletedBusinessService = catchAsync(
   async (req: Request, res: Response) => {
     //   const userId = '64a1f32b3c9f536a2e9b1234';
-    const { userId } = req.user;
+    const { userId } = req.user as {
+      userId: string;
+      email: string;
+      role: string;
+    };
     const result = await businessServiceService.deletedBusinessServiceService(
       req.params.id,
       userId,

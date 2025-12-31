@@ -6,9 +6,10 @@ import AppError from '../error/AppError';
 import config from '../config/index';
 import { User } from '../modules/user/user.models';
 import { verifyToken } from '../utils/tokenManage';
+import { Request } from 'express';
 
 const auth = (...userRoles: string[]) => {
-  return catchAsync(async (req, res, next) => {
+  return catchAsync(async (req: Request, res, next) => {
     const token = req?.headers?.authorization?.split(' ')[1];
     // console.log('*****//***///**', token);
     if (!token) {
@@ -18,7 +19,13 @@ const auth = (...userRoles: string[]) => {
     const decodeData = verifyToken({
       token,
       access_secret: config.jwt_access_secret as string,
-    });
+    }) as {
+      userId: string;
+      email: string;
+      role: string;
+      iat?: number;
+      exp?: number;
+    };
 
     const { role, userId, email } = decodeData;
     // // console.log('decodeData', decodeData);

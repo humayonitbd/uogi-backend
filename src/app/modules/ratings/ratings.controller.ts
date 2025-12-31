@@ -5,7 +5,11 @@ import { reviewService } from './ratings.service';
 
 const createReview = catchAsync(async (req, res) => {
   const reviewData = req.body;
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   // console.log({ userId });
   reviewData.customerId = userId;
 
@@ -21,9 +25,13 @@ const createReview = catchAsync(async (req, res) => {
 });
 
 const createReviewByBussinessMan = catchAsync(async (req, res) => {
-  const {id} = req.params;
+  const { id } = req.params;
   const reviewData = req.body;
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   // console.log({ userId });
   reviewData.businessId = userId;
 
@@ -70,7 +78,11 @@ const getSingleReview = catchAsync(async (req, res) => {
 
 const updateSingleReview = catchAsync(async (req, res) => {
   const { id } = req.params;
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   const updateData = req.body;
   const result = await reviewService.updateReviewQuery(id, updateData, userId);
 
@@ -84,7 +96,11 @@ const updateSingleReview = catchAsync(async (req, res) => {
 });
 
 const deleteSingleReview = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   const result = await reviewService.deletedReviewQuery(req.params.id, userId);
 
   sendResponse(res, {

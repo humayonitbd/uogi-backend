@@ -4,7 +4,7 @@
 // import { walletService } from './wallet.service';
 
 // const createWallet = catchAsync(async (req, res, next) => {
-//     const { userId } = req.user;
+
 //   const result = await walletService.addWalletService(userId);
 
 //   if (result) {
@@ -25,7 +25,7 @@
 // });
 
 // const getSingleWalletByUser = catchAsync(async (req, res, next) => {
-//   const { userId } = req.user;
+
 //   const result = await walletService.userWalletGetService(userId);
 
 //   if (result) {
@@ -46,7 +46,7 @@
 // });
 
 // const deleteWallet = catchAsync(async (req, res, next) => {
-//   const { userId } = req.user;
+
 //   const result = await walletService.deletedWallet(userId);
 
 //   if (result) {

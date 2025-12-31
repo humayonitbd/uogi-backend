@@ -6,10 +6,18 @@ import Stripe from 'stripe';
 import AppError from '../../error/AppError';
 import config from '../../config';
 import { StripeAccount } from '../stripeAccount/stripeAccount.model';
-import { cancelTemplete, successAccountTemplete, successTemplete } from '../../../templete/templete';
+import {
+  cancelTemplete,
+  successAccountTemplete,
+  successTemplete,
+} from '../../../templete/templete';
 
 const addPayment = catchAsync(async (req, res, next) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   const paymentData = req.body;
   paymentData.customerId = userId;
 
@@ -77,8 +85,12 @@ const getAllPayment = catchAsync(async (req, res, next) => {
 });
 
 const getAllPaymentByCustormer = catchAsync(async (req, res, next) => {
-  const { userId } = req.user;
-  console.log('customer id', userId); 
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
+  console.log('customer id', userId);
   const result = await paymentService.getAllPaymentByCustomerService(
     req.query,
     userId,
@@ -243,7 +255,11 @@ const successPageAccount = catchAsync(async (req, res) => {
 
 //webhook
 const createCheckout = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   const result = await paymentService.createCheckout(userId, req.body);
   sendResponse(res, {
     statusCode: 200,
@@ -291,7 +307,11 @@ const paymentRefund = catchAsync(async (req, res) => {
 
 const getAllEarningRasio = catchAsync(async (req, res) => {
   const yearQuery = req.query.year;
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
 
   // Safely extract year as string
   const year = typeof yearQuery === 'string' ? parseInt(yearQuery) : undefined;
@@ -316,7 +336,11 @@ const getAllEarningRasio = catchAsync(async (req, res) => {
 });
 
 const getAllEarningByPaymentMethod = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
 
   const result = await paymentService.filterBalanceByPaymentMethod(userId);
   // console.log('result', result);
@@ -330,7 +354,11 @@ const getAllEarningByPaymentMethod = catchAsync(async (req, res) => {
 });
 
 const getAllWithdrawEarningByPaymentMethod = catchAsync(async (req, res) => {
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   const method = req.query.method as string;
 
   const result = await paymentService.filterWithdrawBalanceByPaymentMethod(
@@ -374,7 +402,11 @@ const createStripeAccount = catchAsync(async (req, res) => {
 
 const transferBalance = catchAsync(async (req, res) => {
   const { accountId, amount } = req.body;
-  const { userId } = req.user;
+  const { userId } = req.user as {
+    userId: string;
+    email: string;
+    role: string;
+  };
   const result = await paymentService.transferBalanceService(
     accountId,
     amount,
