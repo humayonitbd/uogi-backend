@@ -12,6 +12,8 @@ const aws = {
 const stripe = {
   stripe_api_key: process.env.STRIPE_API_KEY,
   stripe_api_secret: process.env.STRIPE_API_SECRET,
+  stripe_payment_success_url: process.env.STRIPE_PAYMENT_SUCCESS_URL,
+  stripe_payment_cancel_url: process.env.STRIPE_PAYMENT_CANCEL_URL,
 };
 
 const super_admin = {
