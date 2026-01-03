@@ -40,7 +40,6 @@
 
 // // apple login
 
-// // Validate config before using it
 // const appleConfig = config.appleLogin_info;
 
 // if (
@@ -290,7 +289,6 @@ passport.serializeUser((user: any, done) => {
 
 passport.deserializeUser(async (id: any, done: any) => {
   try {
-    // const user = await User.findById(id);
     done(null, id as any);
   } catch (error) {
     done(error, null);
