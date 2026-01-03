@@ -26,9 +26,9 @@ pids/
 .env
 .env.*
 
-# keys/apple_key.p8
+
 # Apple private keys
-keys/*.p8
+keys/*
 
  
 # But keep .env.sample
