@@ -86,11 +86,39 @@ const login = async (payload: TLogin) => {
   };
 };
 
-const appleLogin = async (appleUser: any) => {
-  const { appleId, email } = appleUser;
 
-  console.log('appleId', appleId);
-  console.log('email', email);
+const appleLogin = async (payload: any) => {
+  console.log('payload', payload);
+  const user = await User.findOne({appleId:payload.appleId, isDeleted:false})
+  console.log('user', user);
+
+  if(payload.email){
+    const user = await User.findOne({email:payload.email, isDeleted:false, appleId:{$ne:payload.appleId}})
+    if(user){
+      throw new AppError(httpStatus.BAD_REQUEST, 'This email already exist!');
+    }
+  }
+
+  if(user){
+    console.log('exist ');
+    return user;
+  }else{
+    console.log('create');
+    const data={
+      appleId:payload.appleId,
+      email:payload.email,
+      fullName:payload.fullName,
+      role:payload.role
+    }
+
+    const result = await User.create(data);
+    return result;
+
+
+  }
+
+  
+  
 };
 
 // forgot Password

@@ -42,16 +42,7 @@ const twilioOtpSend = catchAsync(async (req, res) => {
   });
 });
 
-const twilioOtpVerify = catchAsync(async (req, res) => {
-  const newUser = await userService.twilioOtpVerify();
 
-  return sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: 'Otp Verify successfully!',
-    data: newUser,
-  });
-});
 
 const userSwichRole = catchAsync(async (req, res) => {
   const { userId } = req.user as {
@@ -182,7 +173,6 @@ export const userController = {
   createUser,
   userCreateVarification,
   twilioOtpSend,
-  twilioOtpVerify,
   userSwichRole,
   getUserById,
   getMyProfile,

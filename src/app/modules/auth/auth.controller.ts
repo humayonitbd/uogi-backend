@@ -7,6 +7,9 @@ import config from '../../config';
 import { otpServices } from '../otp/otp.service';
 import jwt, { JwtPayload, Secret } from 'jsonwebtoken';
 import httpStatus from 'http-status';
+import { successAppleLogin } from '../../../templete/templete';
+import { User } from '../user/user.models';
+import { createToken } from '../../utils/tokenManage';
 
 // login
 const login = catchAsync(async (req: Request, res: Response) => {
@@ -30,21 +33,6 @@ const login = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-
-const appleLogin = catchAsync(async (req: Request, res: Response) => {
-  const userData = req.user;
-  console.log('controller userData', userData);
-  const result = await authServices.appleLogin(userData);
-
- 
-
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: 'Logged in successfully',
-    data: result,
-  });
-});
 
 
 
@@ -80,6 +68,12 @@ const forgotPassword = catchAsync(async (req: Request, res: Response) => {
     message: 'An OTP sent to your email!',
     data: result,
   });
+});
+
+const successLogin = catchAsync(async (req: Request, res: Response) => {
+  // // console.log("email");
+  // // console.log(req?.body?.email);
+  res.send(successAppleLogin);
 });
 
 // forgot password
@@ -137,9 +131,9 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
 
 export const authControllers = {
   login,
-  appleLogin,
   changePassword,
   forgotPassword,
+  successLogin,
   forgotPasswordOtpMatch,
   resetPassword,
   refreshToken,

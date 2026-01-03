@@ -23,7 +23,6 @@ userRoutes
     userController.userCreateVarification,
   )
   .post('/twilio-otp-send', userController.twilioOtpSend)
-  .post('/twilio-otp-verify', userController.twilioOtpVerify)
   .post(
     '/swich-role',
     auth(USER_ROLE.CUSTOMER, USER_ROLE.BUSINESS),

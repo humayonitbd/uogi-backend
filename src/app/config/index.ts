@@ -24,6 +24,8 @@ const appleLogin_info = {
   apple_team_id: process.env.APPLE_TEAM_ID,
   apple_key_id: process.env.APPLE_KEY_ID,
   apple_callback_url: process.env.APPLE_CALLBACK_URL,
+  apple_private_key: process.env.APPLE_PRIVATE_KEY,
+  apple_private_key_path: process.env.APPLE_PRIVATE_KEY_PATH,
 };
 
 const twilio_info = {

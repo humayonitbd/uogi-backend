@@ -16,7 +16,8 @@ import mongoose from 'mongoose';
 import Business from '../business/business.model';
 import bcrypt from 'bcrypt';
 import SubscriptionPurchase from '../purchestSubscription/purchestSubscription.model';
-import twilioClient from '../../utils/twilio';
+import twilioClient from '../../utils/twilioSendOtpSMS';
+import sendSMS from '../../utils/twilioSendOtpSMS';
 
 export type IFilter = {
   searchTerm?: string;
@@ -36,6 +37,11 @@ const createUserToken = async (payload: TUserCreate) => {
   // user role check
   if (!(role === USER_ROLE.CUSTOMER || role === USER_ROLE.BUSINESS)) {
     throw new AppError(httpStatus.BAD_REQUEST, 'User data is not valid !!');
+  }
+
+
+  if(!payload.email || !payload.password){
+    throw new AppError(httpStatus.BAD_REQUEST, 'email and password is required');
   }
 
   // user exist check
@@ -242,115 +248,20 @@ const otpVerifyAndCreateUser = async ({
 };
 
 
-// const twilioOtpSend = async () => {
-//   console.log('twilio service hit hoise');
-//   const toPhoneNumber = "+8801743345476";
-//   // const serviceSid = config.twilio_info.twilio_service_sid as string;
-//   const serviceSid = 'VA662dd16d2a30046a3e3ec98872cca202' as string;
-//   const fromNumber = config.twilio_info.twilio_phone_number as string;
-// // console.log('twilioClient', twilioClient);
+const twilioOtpSend = async () => {
+  console.log('twilio service hit hoise');
+  const toPhoneNumber = "+8801889126591";
+  // const serviceSid = config.twilio_info.twilio_service_sid as string;
+  const serviceSid = 'VA662dd16d2a30046a3e3ec98872cca202' as string;
+  const fromNumber = config.twilio_info.twilio_phone_number as string;
+// console.log('twilioClient', twilioClient);
 
-
-//   try {
-//       const result = await twilioClient.verify.v2
-//         .services(serviceSid)
-//         .verifications.create({
-//           to: toPhoneNumber,
-//           channel: 'sms',
-//         });
-
-//     //  const result = await twilioClient.messages.create({
-//     //    body: `Your OTP is 123456`,
-//     //    from: fromNumber, // Twilio phone number
-//     //    to: toPhoneNumber,
-//     //  });
-
-//     //  const result = await twilioClient.messages.create({
-//     //    from: 'whatsapp:+18634738828',
-//     //    to: 'whatsapp:+8801743345476',
-//     //    body: 'Your OTP is 123456',
-//     //  });
-
-
-
-//       console.log('result =>>>', result);
-//       return result;
-    
-//   } catch (error) {
-//     console.log('twilio error:', error);
-    
-//   }
-
-
-// };
-
-
-const twilioOtpSend = async (): Promise<string> => {
-  try {
-    // Review bypass - only enabled by env flag
-    // if (
-    //   process.env.ENABLE_REVIEW_BYPASS === 'true' &&
-    //   mobileNumber === process.env.REVIEW_BYPASS_PHONE
-    // ) {
-    //   console.log(`Review bypass enabled for ${mobileNumber}`);
-    //   return `review-bypass-${Date.now()}`;
-    // }
-
-    // if (
-    //   !config.twilio.twilioAccountSid ||
-    //   !config.twilio.twilioAuthToken ||
-    //   !twilioServiceSid
-    // ) {
-    //   throw new Error('Missing Twilio configuration');
-    // }
-
-    const mobileNumber = "+8801743345476";  
-
-    const twilioServiceSid = 'VA662dd16d2a30046a3e3ec98872cca202' as string;
-    const verification = await twilioClient.verify.v2
-      .services('VA662dd16d2a30046a3e3ec98872cca202')
-      .verifications.create({
-        to: '+8801743345476',
-        channel: 'sms',
-      });
-
-    return verification.sid;
-  } catch (error: any) {
-    console.log('error:', error);
-    if (error.code === 20003) {
-      throw new AppError(
-        500,
-        'Authentication Error: Invalid Twilio credentials',
-      );
-    }
-
-    if (error.code === 20404) {
-      throw new AppError(500, 'Twilio Service not found: Invalid Service SID');
-    }
-    if (error.code === 60200) {
-      throw new AppError(400, 'Invalid phone number format');
-    }
-
-    throw new AppError(500, `Failed to send OTP: ${error.message}`);
-  }
-};
-
-
-
-const twilioOtpVerify = async () => {
-  const phoneNumber = "021548755654";
-  const serviceSid = config.twilio_info.twilio_service_sid as string;
-  const result = await twilioClient.verify.v2
-    .services(serviceSid)
-    .verifications.create({
-      to: phoneNumber,
-      channel: 'sms',
-    });
-
-    console.log('result =>>>', result);
-    return result;
+const result = sendSMS(toPhoneNumber, `This is your otp num: 02201`);
+console.log('result =>>>>>>>>>>', result);
 
 };
+
+
 
 const userSwichRoleService = async (id: string) => {
   const swichUser = await User.findById(id);
@@ -616,7 +527,6 @@ export const userService = {
   createUserToken,
   otpVerifyAndCreateUser,
   twilioOtpSend,
-  twilioOtpVerify,
   userSwichRoleService,
   getUserById,
   getUserByEmail,

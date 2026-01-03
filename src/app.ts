@@ -11,8 +11,9 @@ import router from './app/routes';
 import path from 'path';
 import { paymentController } from './app/modules/payment/payment.controller';
 import { serverRunningTemplete, successTemplete } from './templete/templete';
-import passport from 'passport';
 import session from 'express-session';
+import passport from 'passport';
+import './app/utils/passport';
 
 const app: Application = express();
 
@@ -58,6 +59,19 @@ app.use(
 // Initialize Passport
 app.use(passport.initialize());
 app.use(passport.session());
+
+
+// ✅ Debug: Check করুন strategies load হয়েছে কিনা
+// console.log('📋 Registered Passport Strategies:');
+// console.log(Object.keys((passport as any)._strategies));
+
+// // এখানে ['session', 'apple'] দেখা উচিত
+// const hasApple = (passport as any)._strategies.apple;
+// if (hasApple) {
+//   console.log('✅ Apple strategy loaded successfully!');
+// } else {
+//   console.error('❌ Apple strategy NOT loaded! Check passport.config.ts');
+// }
 
 // application routes
 app.use('/api/v1', router);

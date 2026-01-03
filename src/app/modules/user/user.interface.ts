@@ -13,6 +13,7 @@ interface IAddress {
 export interface TUserCreate {
   fullName: string;
   email: string;
+  appleId: string;
   password: string;
   phone: string;
   dateOfBirth: Date;

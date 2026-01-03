@@ -16,9 +16,15 @@ const userSchema = new Schema<TUser>(
     },
     email: {
       type: String,
-      required: true,
-      // unique: true,
+      unique: true,
+      sparse: true,
     },
+    appleId: {
+      type: String,
+      unique: true,
+      sparse: true,
+    },
+    
     role: {
       type: String,
       enum: Role,
@@ -26,7 +32,7 @@ const userSchema = new Schema<TUser>(
     },
     password: {
       type: String,
-      required: true,
+      required: false,
       select: false,
     },
     phone: {
@@ -121,14 +127,21 @@ const userSchema = new Schema<TUser>(
 );
 
 userSchema.pre('save', async function (next) {
-  // eslint-disable-next-line @typescript-eslint/no-this-alias
-  const user = this;
+  const user = this as any;
+
+  // Only hash if password exists AND was changed
+  if (!user.password || !user.isModified('password')) {
+    return next();
+  }
+
   user.password = await bcrypt.hash(
     user.password,
     Number(config.bcrypt_salt_rounds),
   );
+
   next();
 });
+
 
 // set '' after saving password
 userSchema.post(

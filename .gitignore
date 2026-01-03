@@ -25,6 +25,11 @@ pids/
 # dotenv environment variables
 .env
 .env.*
+
+# keys/apple_key.p8
+# Apple private keys
+keys/*.p8
+
  
 # But keep .env.sample
 !.env.sample
