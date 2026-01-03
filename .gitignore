@@ -29,6 +29,7 @@ pids/
 
 # Apple private keys
 keys/*
+!keys/test.ts
 
  
 # But keep .env.sample
